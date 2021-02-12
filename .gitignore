@@ -1,2 +1,8 @@
 *.npy
 *.csv
+
+results
+dev
+
+.idea
+__pycache__
