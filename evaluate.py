@@ -79,7 +79,7 @@ if __name__ == "__main__":
     preds = {}
     objs = {}
 
-    methods = ["baseline_*", "baseline_1", "baseline_2", "baseline_3", "baseline_4"]
+    methods = ["method_*", "method_1", "method_2", "method_3", "method_4"]
     for m in methods:
         dists[m] = []
         preds[m] = []
@@ -98,7 +98,7 @@ if __name__ == "__main__":
         idx = np.flatnonzero(subjects == subject)
         
         m = len(idx)
-        if m >= 7:
+        if m >= 15:
             continue
 
         counter += 1
@@ -119,33 +119,26 @@ if __name__ == "__main__":
         # Baseline *: Mean
 
         mu = np.mean(features_subset[labels_subset.astype(bool)], axis=0, keepdims=True).T
-
-        evaluator.update('baseline_*', features_subset, mu, bag_to_index)
+        evaluator.update('method_*', features_subset, mu, bag_to_index)
         
         # Baseline 1: Median
         
         mu = np.median(features_subset, axis=0, keepdims=True).T
-        
         mu_normalized = mu / norm(mu)
         cos_dist = (1 - features_subset @ mu_normalized).flatten()
-
         y_pred, objective = predict(bag_to_index, cos_dist, features_subset, mu)
-
-        evaluator.update('baseline_1', features_subset, mu, bag_to_index)
-
-        y_pred_baseline_1 = y_pred
+        evaluator.update('method_1', features_subset, mu, bag_to_index)
+        y_pred_method_1 = y_pred
 
         # Baseline 2: Two Pass Median
 
-        mu = np.median(features_subset[y_pred_baseline_1.astype(bool)], axis=0, keepdims=True).T
-        
-        evaluator.update('baseline_2', features_subset, mu, bag_to_index)
+        mu = np.median(features_subset[y_pred_method_1.astype(bool)], axis=0, keepdims=True).T
+        evaluator.update('method_2', features_subset, mu, bag_to_index)
 
         # Baseline 3: Average of Medians
 
-        mu = np.mean(features_subset[y_pred_baseline_1.astype(bool)], axis=0, keepdims=True).T
-        
-        evaluator.update('baseline_3', features_subset, mu, bag_to_index)
+        mu = np.mean(features_subset[y_pred_method_1.astype(bool)], axis=0, keepdims=True).T
+        evaluator.update('method_3', features_subset, mu, bag_to_index)
 
         # Baseline 4: MILP
 
@@ -153,8 +146,7 @@ if __name__ == "__main__":
         K = list(index_to_bag.values())
         mu = milp(features_subset, K, False)
         mu = np.atleast_2d(mu).T
-
-        evaluator.update('baseline_4', features_subset, mu, bag_to_index)
+        evaluator.update('method_4', features_subset, mu, bag_to_index)
         # '''
 
     # generate plots
