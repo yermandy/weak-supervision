@@ -1,15 +1,15 @@
 import numpy as np
 
 
-def calc_prec_recall(y_true, preds, dists):
+def calc_prec_recall(X, y_true, y_pred=None, constrained=False):
 
     y_true = np.array(y_true)
-    preds = np.array(preds)
-    dists = np.array(dists)
+    y_pred = np.array(y_pred)
+    X = np.array(X)
 
-    min_d = np.min(dists)
-    max_d = np.max(dists)
-    thresholds = np.linspace(min_d, max_d, min(200, len(dists)))
+    min_d = np.min(X)
+    max_d = np.max(X)
+    thresholds = np.linspace(min_d, max_d, min(200, len(X)))
 
     recall, prec = [], []
 
@@ -17,14 +17,16 @@ def calc_prec_recall(y_true, preds, dists):
 
     for th in thresholds:
 
-        y_pred = np.where((dists <= th), 1, 0)
-        # y_pred = np.where((dists <= th) & (preds == 1), 1, 0)
+        if constrained and y_pred is not None:
+            y_pred_th = np.where((X <= th) & (y_pred == 1), 1, 0)
+        else:
+            y_pred_th = np.where((X <= th), 1, 0)
 
-        y_pred_sum = np.sum(y_pred == 1) + 1e-8
+        y_pred_sum = np.sum(y_pred_th == 1) + 1e-8
 
-        tp = np.sum((y_true == y_pred) & (y_pred == 1))
-        # fp = np.sum((y_pred == 1) & (y_true != y_pred))
-        # fn = np.sum((y_pred == 0) & (y_true != y_pred))
+        tp = np.sum((y_true == y_pred_th) & (y_pred_th == 1))
+        # fp = np.sum((y_pred_th == 1) & (y_true != y_pred_th))
+        # fn = np.sum((y_pred_th == 0) & (y_true != y_pred_th))
         
         r = tp / y_true_sum
         p = tp / y_pred_sum

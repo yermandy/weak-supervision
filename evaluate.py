@@ -66,7 +66,7 @@ if __name__ == "__main__":
 
     subj_bag_indices = parse_metadata(metadata)
 
-    indices = filter_by_counts(subj_bag_indices, 2, 10)
+    indices = filter_by_counts(subj_bag_indices, 2)
 
     metadata = metadata[indices]
     features = features[indices]
@@ -157,7 +157,7 @@ if __name__ == "__main__":
         if len(preds[m]) == 0:
             continue
 
-        recall, prec = calc_prec_recall(y_true, preds[m], dists[m])
+        recall, prec = calc_prec_recall(dists[m], y_true, preds[m])
         plt.plot(recall, prec, label=label)
 
         print(f'{label}: {np.mean(objs[m]):.6f}')
