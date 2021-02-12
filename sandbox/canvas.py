@@ -10,6 +10,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.figure import Figure
 
 from milp import milp
+from milp import objective
 from sandbox import Point
 
 class Canvas(FigureCanvas):
@@ -34,12 +35,19 @@ class Canvas(FigureCanvas):
         self.K = K
 
         self.show()
+
+        bag_to_index = {}
+        for i, k in enumerate(K):
+            if k not in bag_to_index:
+                bag_to_index[k] = []
+            bag_to_index[k].append(i)
+
+        self.bag_to_index = bag_to_index
         
         self.median = Point(self, 0.5, 0.5, 'black', draggable=False)
         self.milp_median = Point(self, 0.5, 0.5, 'magenta', draggable=False)
         self.plot_draggable_points(X, K)
-        
-
+    
 
     def update_median(self):
         X = []
@@ -48,11 +56,14 @@ class Canvas(FigureCanvas):
             X.append([x, y])
         X = np.array(X)
 
-        median = np.median(X, axis=0)
+        median = np.median(X, axis=0, keepdims=True).T
         milp_median = milp(X, self.K, False)
+        milp_median = np.atleast_2d(milp_median).T
+
+        print(f'{objective(self.bag_to_index, X, median):.4f} : {objective(self.bag_to_index, X, milp_median):.4f}')
         
-        self.median.point.center = median
-        self.milp_median.point.center = milp_median
+        self.median.point.center = median.flatten()
+        self.milp_median.point.center = milp_median.flatten()
 
 
     def plot_draggable_points(self, X, K):

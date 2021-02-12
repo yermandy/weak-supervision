@@ -1,1 +1,1 @@
-from .milp import milp, calc_obj
+from .milp import milp, objective

@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 
 
 def milp(X, K, log=True, return_obj_val=False):
+    """ Assumes that array K is sorted """
 
     model = gp.Model("model")
 
@@ -110,11 +111,10 @@ def milp(X, K, log=True, return_obj_val=False):
     return median
 
 
-def calc_obj(K, X, mu):
+def objective(bag_to_index, X, mu):
     objective = []
-    _, unique_idx, unique_cnt = np.unique(K, return_index=True, return_counts=True)
-    for i, c in zip(unique_idx, unique_cnt):
-        d = mu - X[i:i+c].T
+    for indices in bag_to_index.values():
+        d = mu - X[indices].T
         objective.append(np.abs(d).sum(axis=0).min())
     return np.sum(objective)
 
