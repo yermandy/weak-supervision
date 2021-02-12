@@ -50,8 +50,8 @@ def milp(X, K, log=True, return_obj_val=False):
 
     for i in range(m):
         for j in range(d):
-            # model.addVar(name=f"nu_{i}_{j}", obj=X[i, j] - median[j])
-            model.addVar(name=f"nu_{i}_{j}")
+            # model.addVar(name=f"eta_{i}_{j}", obj=X[i, j] - median[j])
+            model.addVar(name=f"eta_{i}_{j}")
 
     for i in range(m):
         model.addVar(vtype=gp.GRB.BINARY, name=f"alpha_{i}")
@@ -65,11 +65,11 @@ def milp(X, K, log=True, return_obj_val=False):
 
     for i in range(m):
         for j in range(d):
-            nu_i_j = model.getVarByName(f"nu_{i}_{j}")
+            eta_i_j = model.getVarByName(f"eta_{i}_{j}")
             mu_j = model.getVarByName(f"mu_{j}")
             x_i_j = X[i, j]
-            model.addConstr(nu_i_j >= mu_j - x_i_j, f"nu_{i}_{j} >= mu_{j} - x_{i}_{j}")
-            model.addConstr(nu_i_j >= x_i_j - mu_j, f"nu_{i}_{j} >= x_{i}_{j} - mu_{j}")
+            model.addConstr(eta_i_j >= mu_j - x_i_j, f"eta_{i}_{j} >= mu_{j} - x_{i}_{j}")
+            model.addConstr(eta_i_j >= x_i_j - mu_j, f"eta_{i}_{j} >= x_{i}_{j} - mu_{j}")
 
     for k, I_k in enumerate(I):
         xi_k = model.getVarByName(f"xi_{k}")
@@ -77,14 +77,14 @@ def milp(X, K, log=True, return_obj_val=False):
         alpha_k_sum = gp.LinExpr()
 
         for i in I_k:
-            nu_sum = gp.LinExpr()
+            eta_sum = gp.LinExpr()
 
             for j in range(d):
-                nu_i_j = model.getVarByName(f"nu_{i}_{j}")
-                nu_sum += nu_i_j
+                eta_i_j = model.getVarByName(f"eta_{i}_{j}")
+                eta_sum += eta_i_j
 
             alpha_i = model.getVarByName(name=f"alpha_{i}")
-            model.addConstr(xi_k >= nu_sum - B * (1 - alpha_i), f"xi_{k} >= nu_{i}_sum - B * (1 - alpha_{i})")
+            model.addConstr(xi_k >= eta_sum - B * (1 - alpha_i), f"xi_{k} >= eta_{i}_sum - B * (1 - alpha_{i})")
 
             alpha_k_sum += alpha_i
 
