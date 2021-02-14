@@ -42,17 +42,15 @@ def milp(X, K, log=True, return_obj_val=False):
 
     xi_sum = gp.LinExpr()
     for k in range(K):
-        xi = model.addVar(name=f"xi_{k}")
+        xi = model.addVar(name=f"xi_{k}", lb=float('-inf'))
         xi_sum += xi
 
     for j in range(d):
-        # model.addVar(name=f"mu_{j}", lb=-B, ub=B, obj=median[j])
-        model.addVar(name=f"mu_{j}")
+        model.addVar(name=f"mu_{j}", lb=float('-inf'))
 
     for i in range(m):
         for j in range(d):
-            # model.addVar(name=f"eta_{i}_{j}", obj=X[i, j] - median[j])
-            model.addVar(name=f"eta_{i}_{j}")
+            model.addVar(name=f"eta_{i}_{j}", lb=float('-inf'))
 
     for i in range(m):
         model.addVar(vtype=gp.GRB.BINARY, name=f"alpha_{i}")
