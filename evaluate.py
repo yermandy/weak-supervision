@@ -12,17 +12,30 @@ from sklearn.decomposition import PCA
 
 class Evaluator():
 
-    def __init__(self, methods: List[str]) -> None:
+    def __init__(self, methods: List[str] = None) -> None:
         self.distances = {}
         self.predictions = {}
         self.objectives = {}
 
-        for m in methods:
-            self.distances[m] = []
-            self.predictions[m] = []
-            self.objectives[m] = []
+        if methods is not None:
+            for method in methods:
+                self.add_method(method)
+
+
+    def get_methods(self):
+        return list(self.distances.keys())
+
+
+    def add_method(self, method):
+        self.distances[method] = []
+        self.predictions[method] = []
+        self.objectives[method] = []
+
 
     def update(self, method, features, mu, bag_to_index):        
+        if method not in self.distances:
+            self.add_method(method)
+
         mu_normalized = mu / norm(mu)
         distances = (1 - features @ mu_normalized).flatten()
 
@@ -90,8 +103,7 @@ if __name__ == "__main__":
 
     # subjects_counter = 0
 
-    methods = ["method_*", "method_1", "method_2", "method_3", "method_4", "method_5"]
-    evaluator = Evaluator(methods)
+    evaluator = Evaluator()
 
     counter = 0
     for s, subject in enumerate(np.unique(subjects)):
@@ -99,7 +111,7 @@ if __name__ == "__main__":
         idx = np.flatnonzero(subjects == subject)
         
         m = len(idx)
-        if m >= 15:
+        if m >= 30:
             continue
 
         counter += 1
@@ -156,15 +168,15 @@ if __name__ == "__main__":
 
     # generate plots
 
-    for m in methods:
-        if len(evaluator.predictions[m]) == 0:
+    for method in evaluator.get_methods():
+        if len(evaluator.predictions[method]) == 0:
             continue
         
-        objective = np.mean(evaluator.objectives[m])
-        label = m.replace('_', ' ')
+        objective = np.mean(evaluator.objectives[method])
+        label = method.replace('_', ' ')
         label += f': {objective:.4f}'
 
-        recall, prec = calc_prec_recall(evaluator.distances[m], y_true, evaluator.predictions[m])
+        recall, prec = calc_prec_recall(evaluator.distances[method], y_true, evaluator.predictions[method])
         plt.plot(recall, prec, label=label)
 
         print(f'{label}')
