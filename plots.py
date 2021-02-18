@@ -13,5 +13,5 @@ def plot_prec_recall(fontsize=16):
     plt.ylim(0, 1)
     plt.legend()
     plt.tight_layout()
-    plt.savefig('results/precision_recal.png', dpi=300)
+    plt.savefig('results/precision_recall.png', dpi=300)
     plt.show()
