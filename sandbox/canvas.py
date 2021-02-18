@@ -57,8 +57,15 @@ class Canvas(FigureCanvas):
         X = np.array(X)
 
         median = np.median(X, axis=0, keepdims=True).T
-        milp_median = milp(X, self.K, False)
+        milp_median, alphas = milp(X, self.K, False, return_alphas=True)
         milp_median = np.atleast_2d(milp_median).T
+
+        for i, alpha in enumerate(alphas):
+            if alpha == 1:
+                self.points[i].point.set_alpha(0.75)
+            else:
+                self.points[i].point.set_alpha(0.25)
+
 
         print(f'{objective(self.bag_to_index, X, median):.4f} : {objective(self.bag_to_index, X, milp_median):.4f}')
         
@@ -96,7 +103,7 @@ if __name__ == '__main__':
 
     X = []
     for i in range(6):
-        X.append([0.5,0.5])
+        X.append(np.random.rand(2))
     K = [1,1,2,2,3,3]
 
     app = QtWidgets.QApplication(sys.argv)
