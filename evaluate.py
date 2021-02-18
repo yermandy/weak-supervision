@@ -1,3 +1,4 @@
+from typing import List
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -6,14 +7,20 @@ from milp import milp
 from metrics import calc_prec_recall
 from plots import plot_prec_recall
 from parse import *
+from sklearn.decomposition import PCA
 
 
 class Evaluator():
 
-    def __init__(self, distances, predictions, objectives) -> None:
-        self.distances = distances
-        self.predictions = predictions
-        self.objectives = objectives
+    def __init__(self, methods: List[str]) -> None:
+        self.distances = {}
+        self.predictions = {}
+        self.objectives = {}
+
+        for m in methods:
+            self.distances[m] = []
+            self.predictions[m] = []
+            self.objectives[m] = []
 
     def update(self, method, features, mu, bag_to_index):        
         mu_normalized = mu / norm(mu)
@@ -24,6 +31,8 @@ class Evaluator():
         self.distances[method].extend(distances)
         self.predictions[method].extend(predictions)
         self.objectives[method].append(objective)
+        
+        return distances, predictions, objective
 
 
 def filter_by_counts(subj_bag_indices, min_counts=1, max_counts=np.inf):
@@ -39,6 +48,7 @@ def filter_by_counts(subj_bag_indices, min_counts=1, max_counts=np.inf):
                 filtered.extend(list(indices))
 
     return filtered
+
 
 def predict(bag_to_index, dist, X, mu):
     y_pred = np.zeros(len(X))
@@ -75,22 +85,13 @@ if __name__ == "__main__":
     subjects = metadata[:, 6].astype(int)
     labels = metadata[:, 7].astype(int)
 
-    dists = {}
-    preds = {}
-    objs = {}
-
-    methods = ["method_*", "method_1", "method_2", "method_3", "method_4"]
-    for m in methods:
-        dists[m] = []
-        preds[m] = []
-        objs[m] = []
-
     y_true = []
     # sorted_subjects = []
 
     # subjects_counter = 0
 
-    evaluator = Evaluator(dists, preds, objs)
+    methods = ["method_*", "method_1", "method_2", "method_3", "method_4", "method_5"]
+    evaluator = Evaluator(methods)
 
     counter = 0
     for s, subject in enumerate(np.unique(subjects)):
@@ -107,59 +108,65 @@ if __name__ == "__main__":
         paths_subset = paths[idx]
         features_subset = features[idx]
         labels_subset = labels[idx]
-        
+
         y_true.extend(labels_subset)
 
         unique_paths, bag_to_index, index_to_bag = parse_paths(paths_subset)
-        img_per_subj = len(unique_paths)
+        bags_number = len(unique_paths)
 
         # sorted_subjects.append(np.arange(subjects_counter, subjects_counter + m))
         # subjects_counter += m
 
-        # Baseline *: Mean
+        # Method *: Mean
 
-        mu = np.mean(features_subset[labels_subset.astype(bool)], axis=0, keepdims=True).T
+        mu = np.median(features_subset[labels_subset.astype(bool)], axis=0, keepdims=True).T
         evaluator.update('method_*', features_subset, mu, bag_to_index)
         
-        # Baseline 1: Median
+        # Method 1: Median
         
         mu = np.median(features_subset, axis=0, keepdims=True).T
-        mu_normalized = mu / norm(mu)
-        cos_dist = (1 - features_subset @ mu_normalized).flatten()
-        y_pred, objective = predict(bag_to_index, cos_dist, features_subset, mu)
-        evaluator.update('method_1', features_subset, mu, bag_to_index)
-        y_pred_method_1 = y_pred
+        distances, predictions_method_1, objective = evaluator.update('method_1', features_subset, mu, bag_to_index)
 
-        # Baseline 2: Two Pass Median
+        # Method 2: Two-Stage Median
 
-        mu = np.median(features_subset[y_pred_method_1.astype(bool)], axis=0, keepdims=True).T
+        mu = np.median(features_subset[predictions_method_1.astype(bool)], axis=0, keepdims=True).T
         evaluator.update('method_2', features_subset, mu, bag_to_index)
 
-        # Baseline 3: Average of Medians
+        # Method 3: Average of Medians
 
-        mu = np.mean(features_subset[y_pred_method_1.astype(bool)], axis=0, keepdims=True).T
+        mu = np.mean(features_subset[predictions_method_1.astype(bool)], axis=0, keepdims=True).T
         evaluator.update('method_3', features_subset, mu, bag_to_index)
 
-        # Baseline 4: MILP
+        # Method 4: MILP
 
         # '''
+        n_components = min(len(features_subset), 2)
+        # n_components = 1
+        pca = PCA(n_components)
+        features_reduced = pca.fit_transform(features_subset)
         K = list(index_to_bag.values())
-        mu = milp(features_subset, K, False)
+        mu, alphas = milp(features_reduced, K, False, return_alphas=True)
         mu = np.atleast_2d(mu).T
-        evaluator.update('method_4', features_subset, mu, bag_to_index)
+        distances, predictions, objective = evaluator.update('method_4', features_reduced, mu, bag_to_index)
+        
+        mu = np.median(features_subset[predictions.astype(bool)], axis=0, keepdims=True).T
+        distances, predictions, objective = evaluator.update('method_5', features_subset, mu, bag_to_index)
         # '''
+
 
     # generate plots
 
     for m in methods:
-        label = m.replace('_', ' ')
-
-        if len(preds[m]) == 0:
+        if len(evaluator.predictions[m]) == 0:
             continue
+        
+        objective = np.mean(evaluator.objectives[m])
+        label = m.replace('_', ' ')
+        label += f': {objective:.4f}'
 
-        recall, prec = calc_prec_recall(dists[m], y_true, preds[m])
+        recall, prec = calc_prec_recall(evaluator.distances[m], y_true, evaluator.predictions[m])
         plt.plot(recall, prec, label=label)
 
-        print(f'{label}: {np.mean(objs[m]):.6f}')
+        print(f'{label}')
 
     plot_prec_recall()
