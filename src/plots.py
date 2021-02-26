@@ -1,12 +1,19 @@
 import matplotlib.pyplot as plt
 
 
-def plot_prec_recall(fontsize=16):
-    plt.rc('font', size=fontsize)
-    plt.rc('axes', titlesize=fontsize)
-    plt.rc('axes', labelsize=fontsize)
+def set_font_size(fontsize):
+    params = {
+        'font.size': fontsize,
+        'axes.titlesize': fontsize,
+        'axes.labelsize': fontsize,
+    }
+    plt.rcParams.update(params)
     plt.xticks(fontsize=fontsize)
     plt.yticks(fontsize=fontsize)
+
+
+def plot_prec_recall(fontsize=16):
+    set_font_size(fontsize)
     plt.xlabel("recall", fontsize=fontsize)
     plt.ylabel("precision", fontsize=fontsize)
     plt.xlim(0, 1)

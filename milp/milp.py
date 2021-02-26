@@ -3,7 +3,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 
-def milp(X, K, log=True, return_obj_val=False):
+def milp(X, K, log=True, return_obj_val=False, return_alphas=False):
     """ Assumes that array K is sorted """
 
     model = gp.Model("model")
@@ -92,6 +92,7 @@ def milp(X, K, log=True, return_obj_val=False):
     # optimize model
 
     model.optimize()
+    model.update()
     
     median = np.zeros(d)
     for j in range(d):
@@ -102,6 +103,13 @@ def milp(X, K, log=True, return_obj_val=False):
 
     # display LP 
     # print(model.display())
+
+    if return_alphas:
+        alphas = np.zeros(m)
+        for i in range(m):
+            alphas[i] = model.getVarByName(f"alpha_{i}").x
+
+        return median, alphas
 
     if return_obj_val:
         return median, model.objVal
@@ -132,9 +140,6 @@ if __name__ == "__main__":
 
     markers = {0: "o", 1: "v"}
 
-    for x, y, i, k in zip(X, Y, I, K):
-        plt.scatter(x, y, color=colors[k], marker=markers[i])
-
     features = np.vstack((X, Y)).T
     median = np.median(features, axis=0, keepdims=True).T
     cos_dist = (1 - features @ median).flatten()
@@ -142,9 +147,12 @@ if __name__ == "__main__":
 
     plt.scatter(median[0], median[1], color='black', marker='x', label='median')
 
-    median = milp(features, K)
+    median, alphas = milp(features, K, return_alphas=True)
 
     plt.scatter(median[0], median[1], color='magenta', marker='x', label='optimal')
+
+    for x, y, a, k in zip(X, Y, alphas, K):
+        plt.scatter(x, y, color=colors[k], marker=markers[a])
 
     plt.legend()
 

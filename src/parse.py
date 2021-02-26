@@ -1,4 +1,9 @@
 from typing import Dict
+import numpy as np
+
+
+def open_metadata(metadata_file: str):
+    return np.genfromtxt(metadata_file, dtype=str, delimiter=",", skip_header=1)
 
 
 def parse_metadata(metadata) -> Dict[int, Dict[str, int]]:
@@ -20,6 +25,21 @@ def parse_metadata(metadata) -> Dict[int, Dict[str, int]]:
         subj_bag_indices[s][b].append(i)
 
     return subj_bag_indices
+
+
+def filter_by_counts(subj_bag_indices, min_counts=1, max_counts=np.inf):
+
+    filtered = []
+    for bag_indices in subj_bag_indices.values():
+        
+        for indices in bag_indices.values():
+
+            indices_len = len(indices)
+
+            if min_counts <= indices_len <= max_counts:
+                filtered.extend(list(indices))
+
+    return filtered
     
 
 def parse_paths(paths):
