@@ -14,12 +14,13 @@ from evaluate import *
 from PIL import Image, ImageDraw
 
 
-# experiment_dataset = 'imdb'
-experiment_dataset = 'ijbb'
+experiment_dataset = 'imdb'
+# experiment_dataset = 'ijbb'
 experiment_path = f'experiments/visualize_dist/{experiment_dataset}'
 
 
 os.makedirs(f'{root}/{experiment_path}', exist_ok=True)
+os.makedirs(f'{root}/images/single/{experiment_dataset}', exist_ok=True)
 
 transform = transforms.Compose([
     transforms.Resize(256),
@@ -53,7 +54,7 @@ def render_faces(distances, paths_subset, boxes_subset):
     for box, path, idx in zip(boxes_subset, paths_subset, argsorted):
         image_name = get_image_name(path, idx)
 
-        img_div = img(src=f'{root}/images/single/{image_name}', style='width: 150px;')
+        img_div = img(src=f'{root}/images/single/{experiment_dataset}/{image_name}', style='width: 150px;')
         method_div.add(img_div)
     
     return method_div
@@ -120,11 +121,11 @@ for s, subject in enumerate(np.unique(subjects)):
 
     to_download.extend(unique_paths)
 
-    '''
+    # '''
     for i, (path, box, label) in enumerate(zip(paths_subset, boxes_subset, labels_subset)):
         image_name = get_image_name(path, i)
         
-        image = Image.open(f'images/{path}')
+        image = Image.open(f'images/{experiment_dataset}/{path}')
         image = crop(image, box, 0.5)
         image = transform(image)
         
@@ -132,7 +133,7 @@ for s, subject in enumerate(np.unique(subjects)):
         color = 'green' if label == 1 else 'red'
         draw.rectangle(((0, 0), (224, 224)), outline=color, width=5)
 
-        image.save(f'images/single/{image_name}')
+        image.save(f'images/single/{experiment_dataset}/{image_name}')
     # '''
 
     # '''
