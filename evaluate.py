@@ -40,19 +40,21 @@ if __name__ == "__main__":
         # if m >= 30:
         #     continue
 
-        counter += 1
-        print(counter)
-
         paths_subset = paths[idx]
         features_subset = features[idx]
         labels_subset = labels[idx]
 
-        if len(np.unique(labels_subset)) == 1:
+        unique_paths, bag_to_index, index_to_bag = parse_paths(paths_subset)
+        bags_number = len(unique_paths)
+
+        if bags_number == 1:
             continue
+
+        counter += 1
+        print(counter)
 
         y_true.extend(labels_subset)
 
-        unique_paths, bag_to_index, index_to_bag = parse_paths(paths_subset)
         bags_number = len(unique_paths)
 
         #! PCA reduction
@@ -94,7 +96,7 @@ if __name__ == "__main__":
 
         #! Method 5: Suboptimal median
         # '''
-        mu, features_reduced = suboptimal_median(features_subset, list(index_to_bag.values()))
+        mu, features_reduced = suboptimal_median(features_subset, list(index_to_bag.values()), True, 2)
         distances, predictions, objective = evaluator.update('method_5', features_reduced, mu, bag_to_index)
         
         # mu = np.median(features_subset[predictions.astype(bool)], axis=0, keepdims=True).T
