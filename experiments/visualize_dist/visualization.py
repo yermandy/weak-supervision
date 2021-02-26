@@ -1,18 +1,25 @@
 import os, sys
-sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../..')))
+
+root = os.path.abspath(os.path.join(os.path.dirname(__file__), '../..'))
+sys.path.insert(0, root)
 
 import numpy as np
 import matplotlib.pyplot as plt
 import dominate
 import torchvision.transforms as transforms
 
+from src import *
 from dominate.tags import *
 from evaluate import *
 from PIL import Image, ImageDraw
 
 
-experiment_path = 'experiments/dist_to_median_visualization'
+# experiment_dataset = 'imdb'
+experiment_dataset = 'ijbb'
+experiment_path = f'experiments/visualize_dist/{experiment_dataset}'
 
+
+os.makedirs(f'{root}/{experiment_path}', exist_ok=True)
 
 transform = transforms.Compose([
     transforms.Resize(256),
@@ -34,6 +41,7 @@ def crop(image, bb, scale=0.5):
 def get_image_name(path, idx):
     return path.split('/')[1].split('.')[0] + f"_{idx}.png"
 
+
 def render_faces(distances, paths_subset, boxes_subset):
     argsorted = np.argsort(distances)
     
@@ -45,16 +53,16 @@ def render_faces(distances, paths_subset, boxes_subset):
     for box, path, idx in zip(boxes_subset, paths_subset, argsorted):
         image_name = get_image_name(path, idx)
 
-        img_div = img(src=f'../../images/single/{image_name}', style='width: 150px;')
+        img_div = img(src=f'{root}/images/single/{image_name}', style='width: 150px;')
         method_div.add(img_div)
     
     return method_div
 
 
-features = np.load("resources/features/ijbb_features.npy")
+features = np.load(f"resources/features/{experiment_dataset}_features.npy")
 
-metadata_file = "resources/ijbb_metadata.csv"
-metadata = np.genfromtxt(metadata_file, dtype=str, delimiter=",")
+metadata_file = f"resources/{experiment_dataset}_metadata.csv"
+metadata = open_metadata(metadata_file)
 
 subj_bag_indices = parse_metadata(metadata)
 
@@ -75,6 +83,7 @@ evaluator = Evaluator(methods)
 
 doc = dominate.document(title='Faces by distance to median')
 doc_content = div(cls='subjects')
+
 with doc.head:
     script(src='https://ajax.googleapis.com/ajax/libs/jquery/2.1.1/jquery.min.js')
 
@@ -87,11 +96,8 @@ for s, subject in enumerate(np.unique(subjects)):
     idx = np.flatnonzero(subjects == subject)
     
     m = len(idx)
-    if m >= 30 or counter >= 500:
+    if m >= 50 or counter >= 500:
         continue
-    
-    counter += 1
-    print(counter)
 
     paths_subset = paths[idx]
     boxes_subset = boxes[idx]
@@ -103,6 +109,13 @@ for s, subject in enumerate(np.unique(subjects)):
     unique_paths, bag_to_index, index_to_bag = parse_paths(paths_subset)
     
     bags_number = len(unique_paths)
+
+    if bags_number == 1:
+        continue
+
+    counter += 1
+    print(counter)
+
     bags_number_hist.append(bags_number)
 
     to_download.extend(unique_paths)
@@ -122,47 +135,41 @@ for s, subject in enumerate(np.unique(subjects)):
         image.save(f'images/single/{image_name}')
     # '''
 
-    '''
+    # '''
     subj_content = div(cls='subject')
     subj_content.add(div(f'Subject: {subject} | bags: {bags_number}'))
 
-    # Method *: Median
+    #! Method *: Best possible median
 
-    mu = np.median(features_subset[labels_subset.astype(bool)], axis=0, keepdims=True).T
+    mu = median(features_subset[labels_subset.astype(bool)])
     distances, predictions, objective = evaluator.update('method_*', features_subset, mu, bag_to_index)
 
     method_div = render_faces(distances, paths_subset, boxes_subset)
     subj_content.add(f'Ground true | obj: {objective:.4f}')
     subj_content.add(method_div)
 
-    # Method 1: Median
+    #! Method 1: Median
 
-    mu = np.median(features_subset, axis=0, keepdims=True).T
-    distances, predictions, objective = evaluator.update('method_1', features_subset, mu, bag_to_index)
+    mu = median(features_subset)
+    distances, predictions_method_1, objective = evaluator.update('method_1', features_subset, mu, bag_to_index)
 
     method_div = render_faces(distances, paths_subset, boxes_subset)
     subj_content.add(f'Median | obj: {objective:.4f}')
     subj_content.add(method_div)
 
-    # Method 2: Two Pass Median
+    #! Method 2: Two-Stage Median
 
-    mu = np.median(features_subset[predictions.astype(bool)], axis=0, keepdims=True).T
+    mu = median(features_subset[predictions_method_1.astype(bool)])
     distances, predictions, objective = evaluator.update('method_2', features_subset, mu, bag_to_index)
 
     method_div = render_faces(distances, paths_subset, boxes_subset)
     subj_content.add(f'Two-Stage Median | obj: {objective:.4f}')
     subj_content.add(method_div)
 
-    # Method 4: MILP Median
+    #! Method 5: Suboptimal median
 
-    n_components = min(len(features_subset), 2)
-    pca = PCA(n_components)
-    features_reduced = pca.fit_transform(features_subset)
-    K = list(index_to_bag.values())
-    mu, alphas = milp(features_reduced, K, False, return_alphas=True)
-    mu = np.atleast_2d(mu).T
-    mu = np.median(features_reduced[predictions.astype(bool)], axis=0, keepdims=True).T
-    distances, predictions, objective = evaluator.update('method_4', features_reduced, mu, bag_to_index)
+    mu, features_reduced = suboptimal_median(features_subset, list(index_to_bag.values()))
+    distances, predictions, objective = evaluator.update('method_5', features_reduced, mu, bag_to_index)
 
     method_div = render_faces(distances, paths_subset, boxes_subset)
     subj_content.add(f'MILP | obj: {objective:.4f}')
@@ -190,7 +197,7 @@ with open(f'{experiment_path}/dist_to_median.html', 'w') as f:
 # '''
 
 
-# JS
+#! JS
 
 '''
 sorted = $('.subjects .subject').get().sort((a, b) => {
