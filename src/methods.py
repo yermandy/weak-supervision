@@ -79,7 +79,7 @@ def suboptimal_median(features, K, pca=True, n_components=2):
         
         for j, k2 in enumerate(K):
             
-            if i == j or k1 == k2:
+            if k1 == k2:
                 continue
                         
             d = distances[j]
@@ -91,13 +91,12 @@ def suboptimal_median(features, K, pca=True, n_components=2):
                 distances_to[k2] = (d, j)
 
         distances_to = np.array([*distances_to.values()])
-        dists = distances_to[:, 0]
-        dists_sum = np.sum(dists)
+        dists_sum = distances_to[:, 0].sum()
         
         if dists_sum < lowest:
-            lowest = np.sum(dists)
+            lowest = dists_sum
             pred_idx = distances_to[:, 1]
 
-    mu = np.median(features[np.array(pred_idx, dtype=int)], axis=0, keepdims=True).T
+    mu = np.median(features[pred_idx.astype(int)], axis=0, keepdims=True).T
     
     return mu, features
