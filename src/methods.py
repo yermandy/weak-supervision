@@ -1,6 +1,7 @@
 from sklearn.decomposition import PCA
 import numpy as np
 from milp import milp
+import itertools
 
 
 def median(features: np.array) -> np.array:
@@ -68,21 +69,20 @@ def suboptimal_median(features, K, pca=True, n_components=2):
         features = pca.fit_transform(features)
 
     lowest = np.inf
+
     for i, (f1, k1) in enumerate(zip(features, K)):
         
-        distances_to = {}
-        
         # from_id -> (dist, to_id)
-        distances_to[k1] = (0, i)
+        distances_to = {k1: (0, i)}
+
+        distances = np.abs(f1 - features).sum(1)
         
-        for j, (f2, k2) in enumerate(zip(features, K)):
+        for j, k2 in enumerate(K):
             
             if i == j or k1 == k2:
                 continue
-                
-            # d = f1 @ f2 / ( norm(f1) * norm(f2) )
-
-            d = np.abs(f1 - f2).sum()
+                        
+            d = distances[j]
 
             if k2 in distances_to:
                 if d < distances_to[k2][0]:
@@ -97,8 +97,6 @@ def suboptimal_median(features, K, pca=True, n_components=2):
         if dists_sum < lowest:
             lowest = np.sum(dists)
             pred_idx = distances_to[:, 1]
-
-    pred_idx.sort()
 
     mu = np.median(features[np.array(pred_idx, dtype=int)], axis=0, keepdims=True).T
     
