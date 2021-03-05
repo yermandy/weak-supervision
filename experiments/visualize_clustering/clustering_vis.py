@@ -8,8 +8,7 @@ import dominate
 import torchvision.transforms as transforms
 
 from dominate.tags import *
-from src.evaluator import *
-from src.parse import *
+from src import *
 from milp import milp
 
 from sklearn.decomposition import PCA
@@ -41,9 +40,11 @@ def get_image_name(path, idx):
     return path.split('/')[1].split('.')[0] + f"_{idx}.png"
 
 
-features = np.load("resources/features/ijbb_features.npy")
+experiment_dataset = 'imdb'
 
-metadata_file = "resources/ijbb_metadata.csv"
+features = np.load(f"resources/features/{experiment_dataset}_features.npy")
+
+metadata_file = f"resources/{experiment_dataset}_metadata.csv"
 metadata = np.genfromtxt(metadata_file, dtype=str, delimiter=",", skip_header=1)
 
 subj_bag_indices = parse_metadata(metadata)
@@ -60,7 +61,7 @@ subjects = metadata[:, 6].astype(int)
 labels = metadata[:, 7].astype(int)
 
 
-subject = 11802
+subject = 17000
 idx = np.flatnonzero(subjects == subject)
 
 
@@ -76,12 +77,15 @@ unique_paths, bag_to_index, index_to_bag = parse_paths(paths_subset)
 evaluator = Evaluator()
 
 
+
 n_components = 2
 pca = PCA(n_components)
 features_reduced = pca.fit_transform(features_subset)
 K = list(index_to_bag.values())
-mu, alphas = milp(features_reduced, K, False, return_alphas=True)
-mu = np.atleast_2d(mu).T
+
+mu, features_reduced = optimal_median(features_reduced, K)
+# mu, alphas = milp(features_reduced, K, False, return_alphas=True)
+# mu = np.atleast_2d(mu).T
 distances, predictions, objective = evaluator.update('method_4', features_reduced, mu, bag_to_index)
 
 

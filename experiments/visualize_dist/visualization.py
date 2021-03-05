@@ -121,7 +121,7 @@ for s, subject in enumerate(np.unique(subjects)):
 
     to_download.extend(unique_paths)
 
-    # '''
+    '''
     for i, (path, box, label) in enumerate(zip(paths_subset, boxes_subset, labels_subset)):
         image_name = get_image_name(path, i)
         
@@ -169,7 +169,7 @@ for s, subject in enumerate(np.unique(subjects)):
 
     #! Method 5: Suboptimal median
 
-    mu, features_reduced = suboptimal_median(features_subset, list(index_to_bag.values()))
+    mu, features_reduced = suboptimal_median(features_subset, list(index_to_bag.values()), 16)
     distances, predictions, objective = evaluator.update('method_5', features_reduced, mu, bag_to_index)
 
     method_div = render_faces(distances, paths_subset, boxes_subset)
