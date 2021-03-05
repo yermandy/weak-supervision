@@ -4,12 +4,12 @@ from time import time
 
 
 if __name__ == "__main__":
-    # features_file = "resources/features/ijbb_features.npy"
-    features_file = "resources/features/imdb_features.npy"
+    features_file = "resources/features/ijbb_features.npy"
+    # features_file = "resources/features/imdb_features.npy"
     features = np.load(features_file)
 
-    # metadata_file = "resources/ijbb_metadata.csv"
-    metadata_file = "resources/imdb_metadata.csv"
+    metadata_file = "resources/ijbb_metadata.csv"
+    # metadata_file = "resources/imdb_metadata.csv"
     metadata = np.genfromtxt(metadata_file, dtype=str, delimiter=",", skip_header=1)
 
     subj_bag_indices = parse_metadata(metadata)
@@ -20,6 +20,7 @@ if __name__ == "__main__":
     features = features[indices]
 
     paths = metadata[:, 0]
+    scores = metadata[:, 5].astype(float)
     subjects = metadata[:, 6].astype(int)
     labels = metadata[:, 7].astype(int)
 
@@ -31,10 +32,14 @@ if __name__ == "__main__":
     for s, subject in enumerate(np.unique(subjects)):
 
         idx = np.flatnonzero(subjects == subject)
-        
+
+        scores_subset = scores[idx]
+        mask = scores_subset >= 0.0
+        idx = idx[mask]
+
         m = len(idx)
         
-        if m == 1:
+        if m <= 1:
             continue
         
         # if m >= 30:
@@ -55,8 +60,6 @@ if __name__ == "__main__":
 
         y_true.extend(labels_subset)
 
-        bags_number = len(unique_paths)
-
         #! PCA reduction
         ''' 
         n_components = min(len(features_subset), 2)
@@ -67,19 +70,19 @@ if __name__ == "__main__":
         #! Method *: Best possible median
         # '''
         mu = median(features_subset[labels_subset.astype(bool)])
-        evaluator.update('method_*', features_subset, mu, bag_to_index)
+        evaluator.update('optimal', features_subset, mu, bag_to_index)
         # '''
         
         #! Method 1: Median
         # '''
         mu = median(features_subset)
-        distances, predictions_method_1, objective = evaluator.update('method_1', features_subset, mu, bag_to_index)
+        distances, predictions_method_1, objective = evaluator.update('median', features_subset, mu, bag_to_index)
         # '''
 
         #! Method 2: Two-Stage Median
         # '''
         mu = median(features_subset[predictions_method_1.astype(bool)])
-        evaluator.update('method_2', features_subset, mu, bag_to_index)
+        evaluator.update('two-pass', features_subset, mu, bag_to_index)
         # '''
 
         #! Method 3: Average of Medians
@@ -96,8 +99,17 @@ if __name__ == "__main__":
 
         #! Method 5: Suboptimal median
         # '''
-        mu, features_reduced = suboptimal_median(features_subset, list(index_to_bag.values()), True, 2)
-        distances, predictions, objective = evaluator.update('method_5', features_reduced, mu, bag_to_index)
+        mu, features_reduced = suboptimal_median(features_subset, list(index_to_bag.values()))
+        distances, predictions, objective = evaluator.update('no pca', features_reduced, mu, bag_to_index)
+
+        mu, features_reduced = suboptimal_median(features_subset, list(index_to_bag.values()), 2)
+        distances, predictions, objective = evaluator.update('pca {2}С 2D', features_reduced, mu, bag_to_index)
+
+        mu, features_reduced = adaptive_suboptimal_median(features_subset, list(index_to_bag.values()), bag_to_index, 2)
+        distances, predictions, objective = evaluator.update('pca {2,4}C 2D', features_reduced, mu, bag_to_index)
+
+        mu, features_reduced = adaptive_suboptimal_median(features_subset, list(index_to_bag.values()), bag_to_index)
+        distances, predictions, objective = evaluator.update('pca {2,4}C 256D', features_reduced, mu, bag_to_index)
         
         # mu = np.median(features_subset[predictions.astype(bool)], axis=0, keepdims=True).T
         # distances, predictions, objective = evaluator.update('method_5', features_subset, mu, bag_to_index)
