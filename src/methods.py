@@ -38,6 +38,7 @@ def optimal_median(features, K, pca=True, n_components=2):
     Parameters
     ----------
     features : np.array (n_samples, n_features)
+    K: np.array (n_samples)
 
     Returns
     -------
@@ -51,12 +52,16 @@ def optimal_median(features, K, pca=True, n_components=2):
     return mu, features
 
 
-def suboptimal_median(features, K, pca=True, n_components=2):
-    """ Calculates suboptimal median across n_samples
+def suboptimal_median(features, K, n_components=None, return_pred=False):
+    """ Calculates suboptimal median across n_samples.
+        Applies PCA to features if n_components is not None
 
     Parameters
     ----------
     features : np.array (n_samples, n_features)
+    K: np.array (n_samples)
+    n_components: None or int (n_components)
+    return_pred: bool
 
     Returns
     -------
@@ -64,7 +69,7 @@ def suboptimal_median(features, K, pca=True, n_components=2):
     features: np.array (n_samples, min(n_samples, n_components))
     """
 
-    if pca:
+    if n_components is not None:
         pca = PCA(min(len(features), n_components))
         features = pca.fit_transform(features)
 
@@ -97,6 +102,38 @@ def suboptimal_median(features, K, pca=True, n_components=2):
             lowest = dists_sum
             pred_idx = distances_to[:, 1]
 
-    mu = np.median(features[pred_idx.astype(int)], axis=0, keepdims=True).T
+    pred_idx = pred_idx.astype(int)
+    mu = np.median(features[pred_idx], axis=0, keepdims=True).T
+
+    if return_pred:
+        return mu, features, pred_idx
     
+    return mu, features
+
+
+def adaptive_suboptimal_median(features, K, bag_to_index, n_components=None):
+
+    # components = np.linspace(0, 256, 3, dtype=int)
+    components = [2, 4]
+
+    predictions = np.zeros(len(K))
+
+    for c in components:
+        _, _, pred_idx = suboptimal_median(features, K, c, True)
+        for p in pred_idx:
+            predictions[p] += 1
+    
+    final_predictions = []
+    for indices in bag_to_index.values(): 
+        counters = predictions[indices]
+        p = np.argmax(counters)
+        final_predictions.append(indices[p])
+
+    if n_components is not None:
+        pca = PCA(min(len(features), n_components))
+        features = pca.fit_transform(features)
+
+    final_predictions = np.array(final_predictions, dtype=int)
+    mu = np.median(features[final_predictions], axis=0, keepdims=True).T
+
     return mu, features
