@@ -4,10 +4,10 @@ from time import time
 
 
 if __name__ == "__main__":
-    features_training = "resources/features/imdb_features_training.npy"
+    features_training = "resources/features/imdb_train_features.npy"
     features_training = np.load(features_training)
 
-    features_file = "resources/features/imdb_features.npy"
+    features_file = "resources/features/imdb_test_features.npy"
     features = np.load(features_file)
 
     metadata_training = "resources/imdb_metadata_not_annotated.csv"
