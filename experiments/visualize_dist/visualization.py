@@ -10,11 +10,11 @@ import torchvision.transforms as transforms
 
 from src import *
 from dominate.tags import *
-from evaluate import *
 from PIL import Image, ImageDraw
 
 
-experiment_dataset = 'imdb'
+# experiment_dataset = 'imdb_test'
+experiment_dataset = 'imdb_train'
 # experiment_dataset = 'ijbb'
 experiment_path = f'experiments/visualize_dist/{experiment_dataset}'
 
@@ -136,7 +136,7 @@ for s, subject in enumerate(np.unique(subjects)):
         image.save(f'images/single/{experiment_dataset}/{image_name}')
     # '''
 
-    # '''
+    '''
     subj_content = div(cls='subject')
     subj_content.add(div(f'Subject: {subject} | bags: {bags_number}'))
 
