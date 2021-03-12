@@ -1,5 +1,7 @@
 import matplotlib.pyplot as plt
+import seaborn as sns
 
+sns.set_style('whitegrid')
 
 def set_font_size(fontsize):
     params = {
@@ -20,7 +22,7 @@ def plot_prec_recall(fontsize=14):
     plt.ylabel("precision", fontsize=fontsize)
     plt.xlim(0, 1)
     plt.ylim(0, 1)
-    plt.legend(bbox_to_anchor = (1.05, 0.6))
+    plt.legend(loc='center left', bbox_to_anchor = (1.01, 0.5))
     plt.tight_layout()
     plt.savefig('results/precision_recall.png', dpi=300)
     plt.show()

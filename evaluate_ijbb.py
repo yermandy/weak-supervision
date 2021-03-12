@@ -5,26 +5,9 @@ from time import time
 
 if __name__ == "__main__":
     features_file = "resources/features/ijbb_features.npy"
-    # features_file = "resources/features/imdb_features.npy"
-    features = np.load(features_file)
-
     metadata_file = "resources/ijbb_metadata.csv"
-    # metadata_file = "resources/imdb_metadata.csv"
-    metadata = np.genfromtxt(metadata_file, dtype=str, delimiter=",", skip_header=1)
 
-    subj_bag_indices = parse_metadata(metadata)
-
-    indices = filter_by_counts(subj_bag_indices, 2)
-
-    metadata = metadata[indices]
-    features = features[indices]
-
-    paths = metadata[:, 0]
-    scores = metadata[:, 5].astype(float)
-    subjects = metadata[:, 6].astype(int)
-    labels = metadata[:, 7].astype(int)
-
-    y_true = []
+    paths, subjects, labels, scores, features = open_and_parse(metadata_file, features_file)
 
     evaluator = Evaluator()
 
@@ -58,50 +41,97 @@ if __name__ == "__main__":
         counter += 1
         print(counter)
 
-        y_true.extend(labels_subset)
+        evaluator.add_true(labels_subset)
 
-        #! PCA reduction
+        #! PCA reduction of features
         ''' 
         n_components = min(len(features_subset), 2)
         pca = PCA(n_components)
         features_subset = pca.fit_transform(features_subset)
         # '''
 
-        #! Method *: Best possible median
+        #! Best possible median
         # '''
         mu = median(features_subset[labels_subset.astype(bool)])
         evaluator.update('optimal', features_subset, mu, bag_to_index)
         # '''
         
-        #! Method 1: Median
+        #! Median
         # '''
         mu = median(features_subset)
         distances, predictions_method_1, objective = evaluator.update('median', features_subset, mu, bag_to_index)
         # '''
 
-        #! Method 2: Two-Stage Median
+        #! Two-Stage Median
         # '''
         mu = median(features_subset[predictions_method_1.astype(bool)])
         evaluator.update('two-pass', features_subset, mu, bag_to_index)
         # '''
 
-        #! Method 3: Average of Medians
+        #! Average of Medians
         '''
         mu = mean(features_subset[predictions_method_1.astype(bool)])
         evaluator.update('method_3', features_subset, mu, bag_to_index)
         # '''
 
-        #! Method 4: Optimal median
+        #! Optimal median
         '''
         mu, features_reduced = optimal_median(features_subset, list(index_to_bag.values()))
         distances, predictions, objective = evaluator.update('method_4', features_reduced, mu, bag_to_index)
         # '''
 
-        #! Method 5: Suboptimal median
+        #! Suboptimal median without PCA
         # '''
-        mu, features_reduced = suboptimal_median(features_subset, list(index_to_bag.values()))
-        distances, predictions, objective = evaluator.update('no pca', features_reduced, mu, bag_to_index)
+        # mu, features_reduced = suboptimal_median(features_subset, list(index_to_bag.values()))
+        # distances, predictions, objective = evaluator.update('no pca', features_subset, mu, bag_to_index)
 
+        #! Suboptimal median with normalized features
+        # '''
+        # features_normalized = (features_subset - features_subset.mean(axis=0)) / features_subset.var(axis=0)
+        # mu, features_reduced = suboptimal_median(features_normalized, list(index_to_bag.values()))
+        # distances, predictions, objective = evaluator.update('normalized', features_normalized, mu, bag_to_index)
+        # '''
+
+        #! Different quality thresholds
+        '''
+        mu, features_reduced = suboptimal_median(features_subset, list(index_to_bag.values()))
+        distances, predictions, objective = evaluator.update('th 0', features_subset, mu, bag_to_index)
+        
+        threshold = 0.25
+        mask = scores_subset >= threshold
+        features_thresholded = features_subset[mask]
+        K = np.array(list(index_to_bag.values()))
+        K = K[mask]
+        mu, features_reduced = suboptimal_median(features_thresholded, K)
+        distances, predictions, objective = evaluator.update('th 0.25', features_subset, mu, bag_to_index)
+
+        threshold = 0.5
+        mask = scores_subset >= threshold
+        features_thresholded = features_subset[mask]
+        K = np.array(list(index_to_bag.values()))
+        K = K[mask]
+        mu, features_reduced = suboptimal_median(features_thresholded, K)
+        distances, predictions, objective = evaluator.update('th 0.5', features_subset, mu, bag_to_index)
+
+        threshold = 0.75
+        mask = scores_subset >= threshold
+        features_thresholded = features_subset[mask]
+        K = np.array(list(index_to_bag.values()))
+        K = K[mask]
+        mu, features_reduced = suboptimal_median(features_thresholded, K)
+        distances, predictions, objective = evaluator.update('th 0.75', features_subset, mu, bag_to_index)
+
+        threshold = 0.95
+        mask = scores_subset >= threshold
+        features_thresholded = features_subset[mask]
+        K = np.array(list(index_to_bag.values()))
+        K = K[mask]
+        mu, features_reduced = suboptimal_median(features_thresholded, K)
+        distances, predictions, objective = evaluator.update('th 0.95', features_subset, mu, bag_to_index)
+        # '''
+
+        #! Different PCA evaluation
+        '''
         mu, features_reduced = suboptimal_median(features_subset, list(index_to_bag.values()), 2)
         distances, predictions, objective = evaluator.update('pca {2}С 2D', features_reduced, mu, bag_to_index)
 
@@ -110,9 +140,6 @@ if __name__ == "__main__":
 
         mu, features_reduced = adaptive_suboptimal_median(features_subset, list(index_to_bag.values()), bag_to_index)
         distances, predictions, objective = evaluator.update('pca {2,4}C 256D', features_reduced, mu, bag_to_index)
-        
-        # mu = np.median(features_subset[predictions.astype(bool)], axis=0, keepdims=True).T
-        # distances, predictions, objective = evaluator.update('method_5', features_subset, mu, bag_to_index)
         # '''
 
     #! Generate plots
@@ -123,9 +150,9 @@ if __name__ == "__main__":
         
         objective = np.mean(evaluator.objectives[method])
         label = method.replace('_', ' ')
-        label += f': {objective:.4f}'
+        label += f': {objective:.2f}'
 
-        recall, prec = calc_prec_recall(evaluator.distances[method], y_true, evaluator.predictions[method])
+        recall, prec = calc_prec_recall(evaluator.distances[method], evaluator.true, evaluator.predictions[method])
         plt.plot(recall, prec, label=label)
 
         print(f'{label}')

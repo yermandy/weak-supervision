@@ -8,6 +8,7 @@ class Evaluator():
         self.distances = {}
         self.predictions = {}
         self.objectives = {}
+        self.true = []
 
         if methods is not None:
             for method in methods:
@@ -17,14 +18,15 @@ class Evaluator():
     def get_methods(self):
         return list(self.distances.keys())
 
+    def add_true(self, labels_to_add: list):
+        self.true.extend(labels_to_add)
 
-    def add_method(self, method):
+    def add_method(self, method: str):
         self.distances[method] = []
         self.predictions[method] = []
         self.objectives[method] = []
 
-
-    def update(self, method, features, mu, bag_to_index):        
+    def update(self, method: str, features: np.array, mu: np.array, bag_to_index: dict):        
         if method not in self.distances:
             self.add_method(method)
 

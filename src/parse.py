@@ -67,3 +67,21 @@ def parse_paths(paths):
 
     unique_paths = list(path_to_bag.keys())
     return unique_paths, bag_to_index, index_to_bag
+
+
+def open_and_parse(metadata_file, features_file, min_counts=2):
+    features = np.load(features_file)
+    metadata = open_metadata(metadata_file)
+
+    subj_bag_indices_trining = parse_metadata(metadata)
+    indices = filter_by_counts(subj_bag_indices_trining, min_counts)
+
+    metadata = metadata[indices]
+    features = features[indices]
+
+    paths = metadata[:, 0]
+    subjects = metadata[:, 6].astype(int)
+    labels = metadata[:, 7].astype(int)
+    scores = metadata[:, 5].astype(float)
+
+    return paths, subjects, labels, scores, features

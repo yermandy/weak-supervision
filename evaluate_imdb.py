@@ -4,53 +4,28 @@ from time import time
 
 
 if __name__ == "__main__":
-    features_training = "resources/features/imdb_train_features.npy"
-    features_training = np.load(features_training)
+    metadata_trn = "resources/imdb_train_metadata.csv"
+    features_trn = "resources/features/imdb_train_features.npy"
 
-    features_file = "resources/features/imdb_test_features.npy"
-    features = np.load(features_file)
+    paths_trn, subjects_trn, labels_trn, scores_trn, features_trn = open_and_parse(metadata_trn, features_trn)
 
-    metadata_training = "resources/imdb_metadata_not_annotated.csv"
-    metadata_training = np.genfromtxt(metadata_training, dtype=str, delimiter=",", skip_header=1)
+    metadata_tst = "resources/imdb_test_metadata.csv"
+    features_tst = "resources/features/imdb_test_features.npy"
 
-    metadata_file = "resources/imdb_metadata.csv"
-    metadata = np.genfromtxt(metadata_file, dtype=str, delimiter=",", skip_header=1)
-
-
-    subj_bag_indices_trining = parse_metadata(metadata_training)
-    indices_training = filter_by_counts(subj_bag_indices_trining, 2)
-
-    metadata_training = metadata_training[indices_training]
-    features_training = features_training[indices_training]
-
-
-    subj_bag_indices = parse_metadata(metadata)
-    indices = filter_by_counts(subj_bag_indices, 2)
-
-    metadata = metadata[indices]
-    features = features[indices]
-
-    paths_training = metadata_training[:, 0]
-    subjects_training = metadata_training[:, 6].astype(int)
-    labels_training = metadata_training[:, 7].astype(int)
-    scores_training = metadata_training[:, 5].astype(float)
-
-    paths = metadata[:, 0]
-    subjects = metadata[:, 6].astype(int)
-    labels = metadata[:, 7].astype(int)
+    paths_tst, subjects_tst, labels_tst, scores_tst, features_tst = open_and_parse(metadata_tst, features_tst)
 
     y_true = []
 
     evaluator = Evaluator()
 
     counter = 0
-    for s, subject in enumerate(np.unique(subjects)):
+    for s, subject in enumerate(np.unique(subjects_tst)):
 
-        idx = np.flatnonzero(subjects == subject)
-        idx_training = np.flatnonzero(subjects_training == subject)
+        idx = np.flatnonzero(subjects_tst == subject)
+        idx_training = np.flatnonzero(subjects_trn == subject)
 
-        # scores_training_subset = scores_training[idx_training]
-        # mask = scores_training_subset >= 0.5
+        # scores_trn_subset = scores_trn[idx_training]
+        # mask = scores_trn_subset >= 0.5
         # idx_training = idx_training[mask]
         
         m = len(idx)
@@ -61,15 +36,15 @@ if __name__ == "__main__":
         # if m >= 30:
         #     continue
 
-        paths_training_subset = paths_training[idx_training]
-        features_training_subset = features_training[idx_training]
-        labels_training_subset = labels_training[idx_training]
+        paths_trn_subset = paths_trn[idx_training]
+        features_trn_subset = features_trn[idx_training]
+        labels_trn_subset = labels_trn[idx_training]
 
-        paths_subset = paths[idx]
-        features_subset = features[idx]
-        labels_subset = labels[idx]
+        paths_subset = paths_tst[idx]
+        features_subset = features_tst[idx]
+        labels_subset = labels_tst[idx]
 
-        unique_paths_training, bag_to_index_training, index_to_bag_training = parse_paths(paths_training_subset)
+        unique_paths_trn, bag_to_index_training, index_to_bag_training = parse_paths(paths_trn_subset)
 
         unique_paths, bag_to_index, index_to_bag = parse_paths(paths_subset)
         bags_number = len(unique_paths)
@@ -97,8 +72,8 @@ if __name__ == "__main__":
         
         #! Method 1: Median on training data
         # '''
-        mu = median(features_training_subset)
-        distances, predictions_method_1, objective = evaluator.update('_', features_training_subset, mu, bag_to_index_training)
+        mu = median(features_trn_subset)
+        distances, predictions_method_1, objective = evaluator.update('_', features_trn_subset, mu, bag_to_index_training)
         evaluator.update('median', features_subset, mu, bag_to_index)
         # '''
 
@@ -110,7 +85,7 @@ if __name__ == "__main__":
 
         #! Method 2: Two-Stage Median
         # '''
-        mu = median(features_training_subset[predictions_method_1.astype(bool)])
+        mu = median(features_trn_subset[predictions_method_1.astype(bool)])
         evaluator.update('two-stage', features_subset, mu, bag_to_index)
         # '''
 
@@ -127,22 +102,22 @@ if __name__ == "__main__":
         # '''
 
         #! Method 5: Suboptimal median
-        # '''
+        '''
         K = list(index_to_bag_training.values())
 
-        mu, _ = suboptimal_median(features_training_subset, K)
+        mu, _ = suboptimal_median(features_trn_subset, K)
         distances, predictions, objective = evaluator.update('no pca', features_subset, mu, bag_to_index)
 
-        pca = PCA(min(len(features), 2))
+        pca = PCA(min(len(features_tst), 2))
         features_reduced = pca.fit_transform(features_subset)
 
-        mu, _ = suboptimal_median(features_training_subset, K, 2)
+        mu, _ = suboptimal_median(features_trn_subset, K, 2)
         distances, predictions, objective = evaluator.update('pca {2}С 2D', features_reduced, mu, bag_to_index)
 
-        mu, _ = adaptive_suboptimal_median(features_training_subset, K, bag_to_index_training, 2)
+        mu, _ = adaptive_suboptimal_median(features_trn_subset, K, bag_to_index_training, 2)
         distances, predictions, objective = evaluator.update('pca {2,4}С 2D', features_reduced, mu, bag_to_index)
 
-        mu, _ = adaptive_suboptimal_median(features_training_subset, K, bag_to_index_training)
+        mu, _ = adaptive_suboptimal_median(features_trn_subset, K, bag_to_index_training)
         distances, predictions, objective = evaluator.update('pca {2,4}C 256D', features_subset, mu, bag_to_index)
         # '''
 
