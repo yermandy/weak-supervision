@@ -13,18 +13,18 @@ def calc_prec_recall(X, y_true, y_pred=None, constrained=False):
 
     recall, prec = [], []
 
-    y_true_sum = np.sum(y_true == 1) + 1e-8
+    y_true_sum = np.sum(y_true) + 1e-8
 
     for th in thresholds:
 
         if constrained and y_pred is not None:
-            y_pred_th = np.where((X <= th) & (y_pred == 1), 1, 0)
+            y_pred_th = (X <= th) & (y_pred == 1) 
         else:
-            y_pred_th = np.where((X <= th), 1, 0)
+            y_pred_th = X <= th
 
-        y_pred_sum = np.sum(y_pred_th == 1) + 1e-8
+        y_pred_sum = np.sum(y_pred_th) + 1e-8
 
-        tp = np.sum((y_true == y_pred_th) & (y_pred_th == 1))
+        tp = np.sum((y_true == y_pred_th) & (y_pred_th))
         # fp = np.sum((y_pred_th == 1) & (y_true != y_pred_th))
         # fn = np.sum((y_pred_th == 0) & (y_true != y_pred_th))
         
