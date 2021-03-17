@@ -13,7 +13,7 @@ def calc_prec_recall(X, y_true, y_pred=None, constrained=False):
 
     recall, prec = [], []
 
-    y_true_sum = np.sum(y_true) + 1e-8
+    y_true_sum = max(np.sum(y_true), 1e-8)
 
     for th in thresholds:
 
@@ -22,7 +22,7 @@ def calc_prec_recall(X, y_true, y_pred=None, constrained=False):
         else:
             y_pred_th = X <= th
 
-        y_pred_sum = np.sum(y_pred_th) + 1e-8
+        y_pred_sum = max(np.sum(y_pred_th), 1e-8)
 
         tp = np.sum((y_true == y_pred_th) & (y_pred_th))
         # fp = np.sum((y_pred_th == 1) & (y_true != y_pred_th))
