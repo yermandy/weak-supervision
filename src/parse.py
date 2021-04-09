@@ -80,8 +80,9 @@ def open_and_parse(metadata_file, features_file, min_counts=2):
     features = features[indices]
 
     paths = metadata[:, 0]
+    boxes = metadata[:, [1,2,3,4]].astype(int)
+    scores = metadata[:, 5].astype(float)
     subjects = metadata[:, 6].astype(int)
     labels = metadata[:, 7].astype(int)
-    scores = metadata[:, 5].astype(float)
 
-    return paths, subjects, labels, scores, features
+    return paths, boxes, scores, subjects, labels, features
