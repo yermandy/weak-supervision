@@ -40,12 +40,13 @@ def get_image_name(path, idx):
     return path.split('/')[1].split('.')[0] + f"_{idx}.png"
 
 
-experiment_dataset = 'imdb'
+experiment_dataset = 'ijbb'
 
-features = np.load(f"resources/features/{experiment_dataset}_features.npy")
+# features = np.load(f"resources/features/{experiment_dataset}_features.npy")
+features = np.load(f"resources/features/{experiment_dataset}_arcface_features.npy")
 
 metadata_file = f"resources/{experiment_dataset}_metadata.csv"
-metadata = np.genfromtxt(metadata_file, dtype=str, delimiter=",", skip_header=1)
+metadata = open_metadata(metadata_file)
 
 subj_bag_indices = parse_metadata(metadata)
 
@@ -61,9 +62,9 @@ subjects = metadata[:, 6].astype(int)
 labels = metadata[:, 7].astype(int)
 
 
-subject = 17000
+subject = 171
 idx = np.flatnonzero(subjects == subject)
-
+print('detections:', len(idx))
 
 paths_subset = paths[idx]
 boxes_subset = boxes[idx]
@@ -79,14 +80,21 @@ evaluator = Evaluator()
 
 
 n_components = 2
-pca = PCA(n_components)
-features_reduced = pca.fit_transform(features_subset)
-K = list(index_to_bag.values())
 
-mu, features_reduced = optimal_median(features_reduced, K)
+# from sklearn.manifold import TSNE
+# tsne = TSNE(n_components)
+# features_reduced = tsne.fit_transform(features_subset)
+
+# pca = PCA(n_components)
+# features_reduced = pca.fit_transform(features_subset)
+
+
+K = list(index_to_bag.values())
+# mu, features_reduced = optimal_median(features_reduced, K)
+mu, features_reduced = suboptimal_median(features_subset, K, 2)
 # mu, alphas = milp(features_reduced, K, False, return_alphas=True)
 # mu = np.atleast_2d(mu).T
-distances, predictions, objective = evaluator.update('method_4', features_reduced, mu, bag_to_index)
+distances, predictions, objective = evaluator.update('_', features_reduced, mu, bag_to_index)
 
 
 markers = {0: "o", 1: "v"}
@@ -94,14 +102,16 @@ markers = {0: "o", 1: "v"}
 
 unique_K = len(unique_paths)
 
-for (x, y), p, k in zip(features_reduced, predictions, K):
+for (x, y), p, k in zip(features_reduced, labels_subset, K):
+# for (x, y), p, k in zip(features_reduced, predictions, K):
     color = cm.gist_rainbow((k + 1) / unique_K)
     plt.scatter(x, y, marker=markers[p], color=color)
 
 mu = mu.flatten()
-plt.scatter(mu[0], mu[1], marker='x', color='magenta')
+plt.scatter(mu[0], mu[1], marker='+', color='magenta', s=100)
 
 mu = np.median(features_reduced[labels_subset.astype(bool)], axis=0)
-plt.scatter(mu[0], mu[1], marker='x', color='black')
+plt.scatter(mu[0], mu[1], marker='x', color='black', s=70)
 
+plt.tight_layout()
 plt.show()
