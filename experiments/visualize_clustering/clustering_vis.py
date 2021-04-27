@@ -4,66 +4,33 @@ sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), '../.
 import numpy as np
 import matplotlib.pyplot as plt
 import matplotlib.cm as cm
-import dominate
-import torchvision.transforms as transforms
+from mpl_toolkits.mplot3d import Axes3D
 
-from dominate.tags import *
 from src import *
-from milp import milp
 
 from sklearn.decomposition import PCA
 from PIL import Image, ImageDraw
 
 
-
 experiment_path = 'experiments/visualize_clustering'
-
-
-transform = transforms.Compose([
-    transforms.Resize(256),
-    transforms.CenterCrop(224)
-])
-
-
-def crop(image, bb, scale=0.5):
-    x1, y1, x2, y2 = bb
-    w_scale = ((x2 - x1) * scale) / 2
-    h_scale = ((y2 - y1) * scale) / 2
-    x1 -= int(w_scale)
-    y1 -= int(h_scale)
-    x2 += int(w_scale)
-    y2 += int(h_scale)
-    return image.crop((x1, y1, x2, y2))
-
-
-def get_image_name(path, idx):
-    return path.split('/')[1].split('.')[0] + f"_{idx}.png"
-
-
 experiment_dataset = 'ijbb'
+subject = 163
 
 # features = np.load(f"resources/features/{experiment_dataset}_features.npy")
-features = np.load(f"resources/features/{experiment_dataset}_arcface_features.npy")
+features = f"resources/features/{experiment_dataset}_arcface_features.npy"
 
 metadata_file = f"resources/{experiment_dataset}_metadata.csv"
-metadata = open_metadata(metadata_file)
 
-subj_bag_indices = parse_metadata(metadata)
+paths, boxes, scores, subjects, labels, features = open_and_parse(metadata_file, features, 2)
 
-indices = filter_by_counts(subj_bag_indices, 2)
-
-metadata = metadata[indices]
-features = features[indices]
-
-
-paths = metadata[:, 0]
-boxes = metadata[:, 1:5].astype(int)
-subjects = metadata[:, 6].astype(int)
-labels = metadata[:, 7].astype(int)
-
-
-subject = 171
 idx = np.flatnonzero(subjects == subject)
+
+# idx_img = np.flatnonzero(np.core.defchararray.find(paths , 'img') != -1)
+idx_frames = np.flatnonzero(np.core.defchararray.find(paths , 'img') == -1)
+
+idx = np.intersect1d(idx, idx_frames)
+
+print('subject:', subject)
 print('detections:', len(idx))
 
 paths_subset = paths[idx]
@@ -71,47 +38,71 @@ boxes_subset = boxes[idx]
 features_subset = features[idx]
 labels_subset = labels[idx]
 
-
 unique_paths, bag_to_index, index_to_bag = parse_paths(paths_subset)
-
 
 evaluator = Evaluator()
 
-
-
-n_components = 2
-
-# from sklearn.manifold import TSNE
-# tsne = TSNE(n_components)
-# features_reduced = tsne.fit_transform(features_subset)
-
-# pca = PCA(n_components)
-# features_reduced = pca.fit_transform(features_subset)
-
-
 K = list(index_to_bag.values())
-# mu, features_reduced = optimal_median(features_reduced, K)
-mu, features_reduced = suboptimal_median(features_subset, K, 2)
-# mu, alphas = milp(features_reduced, K, False, return_alphas=True)
-# mu = np.atleast_2d(mu).T
-distances, predictions, objective = evaluator.update('_', features_reduced, mu, bag_to_index)
+medoid = suboptimal_median(features_subset, K)
+distances, predictions, objective = evaluator.update('_', features_subset, medoid, bag_to_index)
 
+
+mu_ground_true = median(features_subset[labels_subset.astype(bool)]).T
+
+concatenated = np.concatenate((features_subset, medoid.T, mu_ground_true), axis=0)
+
+pca = PCA(3)
+concatenated = pca.fit_transform(concatenated)
+concatenated /= norm(concatenated, keepdims=True, axis=1)
+
+features_subset = concatenated[:-2]
+medoid = concatenated[-2]
+mu_ground_true = concatenated[-1]
 
 markers = {0: "o", 1: "v"}
-# colors = {}
 
 unique_K = len(unique_paths)
 
-for (x, y), p, k in zip(features_reduced, labels_subset, K):
-# for (x, y), p, k in zip(features_reduced, predictions, K):
+ax = plt.figure().add_subplot(projection='3d')
+ax.set_box_aspect([1, 1, 1])
+
+# Make data
+u = np.linspace(0, 2 * np.pi, 100)
+v = np.linspace(0, np.pi, 100)
+r = 0.985
+x = r * np.outer(np.cos(u), np.sin(v))
+y = r * np.outer(np.sin(u), np.sin(v))
+z = r * np.outer(np.ones(np.size(u)), np.cos(v))
+
+# Plot the surface
+# ax.plot_surface(x, y, z, color='black', alpha=0.05)
+ax.plot_surface(x, y, z, color='white', alpha=0.25)
+
+ax.set_xlim3d(-1, 1)
+ax.set_ylim3d(-1, 1)
+ax.set_zlim3d(-1, 1)
+
+
+for (x, y, z), p, k in zip(features_subset, labels_subset, K):
     color = cm.gist_rainbow((k + 1) / unique_K)
-    plt.scatter(x, y, marker=markers[p], color=color)
+    # plt.scatter(x, y, marker=markers[p], color=color)
+    ax.scatter3D(x, y, z, marker=markers[p], color=color)
 
-mu = mu.flatten()
-plt.scatter(mu[0], mu[1], marker='+', color='magenta', s=100)
+# Plot medoid
+medoid = medoid.flatten()
+medoid = medoid / norm(medoid)
+# plt.scatter(mu[0], mu[1], marker='+', color='magenta', s=100)
+ax.scatter3D(medoid[0], medoid[1], medoid[2], marker='+', color='magenta', s=100)
+ax.quiver(0, 0, 0, medoid[0], medoid[1], medoid[2], color='magenta', arrow_length_ratio=0.1)
 
-mu = np.median(features_reduced[labels_subset.astype(bool)], axis=0)
-plt.scatter(mu[0], mu[1], marker='x', color='black', s=70)
+# Plot ground true
+medoid = np.median(features_subset[labels_subset.astype(bool)], axis=0)
+medoid = medoid / norm(medoid)
+# plt.scatter(mu[0], mu[1], marker='x', color='black', s=70)
+ax.scatter3D(medoid[0], medoid[1], medoid[2], marker='x', color='blue', s=70)
+ax.quiver(0, 0, 0, medoid[0], medoid[1], medoid[2], color='blue', arrow_length_ratio=0.1)
 
-plt.tight_layout()
+# Plot [0, 0, 0]
+ax.scatter(0, 0, 0, color='black')
+
 plt.show()
